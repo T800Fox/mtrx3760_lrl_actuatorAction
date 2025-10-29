@@ -5,4 +5,6 @@ log/
 maps/
 photos/
 
+.vscode/
+
 src/turtlebot3_simulations
