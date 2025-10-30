@@ -10,7 +10,7 @@ amcl:
     laser_z_short: 0.1
     laser_z_max: 0.05 # how much weight on far readings, 'higher => trusts empty space more'
     laser_z_rand: 0.05
-    laser_sigma_hit: 0.2 # how strict the robot is about matching up lidar readings
+    laser_sigma_hit: 0.6 # how strict the robot is about matching up lidar readings
     laser_lambda_short: 0.1
     laser_likelihood_max_dist: 2.0
     update_min_d: 0.25
@@ -33,7 +33,7 @@ amcl:
     pf_z: 0.99
 
     # Motion model noise parameters
-    alpha1: 0.5 # rotation affect on heading est. -> trying to counter angular misalignment 
+    alpha1: 0.6 # rotation affect on heading est. -> trying to counter angular misalignment 
     alpha2: 0.2
     alpha3: 0.2
-    alpha4: 0.5 # rotation affect on coord. est. -> trying to counter angular misalignment
+    alpha4: 0.6 # rotation affect on coord. est. -> trying to counter angular misalignment
