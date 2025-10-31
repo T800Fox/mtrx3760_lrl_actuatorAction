@@ -6,18 +6,22 @@
 #include <cmath>
 #include <deque>
 #include <fstream>
+
 #include <rclcpp/rclcpp.hpp>
+#include "rclcpp_action/rclcpp_action.hpp"
 
 //Msgs
 #include <std_msgs/msg/bool.hpp>
+#include "std_msgs/msg/float64.hpp"
 #include <geometry_msgs/msg/twist_stamped.hpp>
+
 #include "mtrx3760_oogway_mazesolver/msg/wall_dist.hpp"
 #include "mtrx3760_oogway_mazesolver/msg/pose.hpp"
-#include "std_msgs/msg/float64.hpp"
-
 #include "mtrx3760_oogway_mazesolver/msg/angular_cmd.hpp"
 #include "mtrx3760_oogway_mazesolver/msg/linear_cmd.hpp"
 #include "mtrx3760_oogway_mazeSolver/utils.hpp"
+
+#include "lrl_action_interface/action/test.hpp"
 
 
 const double POSE_EQUAL_THRESH = 0.15;
@@ -50,6 +54,10 @@ const double STABLE_VEL = 1.0; //Linear velocity at which odom is stable (no sli
 class mazeNavigator : public rclcpp::Node
 {
     public:
+        using Actuator = lrl_action_interface::action::Test;
+        using GoalHandleActuator = rclcpp_action::ClientGoalHandle<Actuator>;
+
+
         mazeNavigator();
         ~mazeNavigator();
     private:
@@ -66,7 +74,8 @@ class mazeNavigator : public rclcpp::Node
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr is_abs_rotating_sub_;
         rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr is_abs_moving_sub_;
 
-        
+        // ROS Action Client Pointer
+        rclcpp_action::Client<Actuator>::SharedPtr client_ptr_;
 
         // Subscriber callbacks
         void at_goal_callback(const std_msgs::msg::Bool::SharedPtr msg);

@@ -19,6 +19,12 @@ mazeNavigator::mazeNavigator()
   angular_cmd_pub_ = this->create_publisher<mtrx3760_oogway_mazesolver::msg::AngularCmd>("angular_cmd", qos); 
   linear_cmd_pub_ = this->create_publisher<mtrx3760_oogway_mazesolver::msg::LinearCmd>("linear_cmd", qos); 
 
+  // Initialise Client Pointer For Actuator
+  this->client_ptr_ = rclcpp_action::create_client<Actuator>(
+        this,
+        "actuator");
+
+
   // Initialise subscribers
   at_goal_sub_ = this->create_subscription<std_msgs::msg::Bool>(
     "at_goal", 
@@ -328,37 +334,237 @@ void mazeNavigator::wall_dist_callback(const mtrx3760_oogway_mazesolver::msg::Wa
 
 
 void mazeNavigator::rotate_offset(double angle_offset){
-  mtrx3760_oogway_mazesolver::msg::AngularCmd cmd;
-  cmd.target_angle = std::fmod((curr_angle + angle_offset * (M_PI/180)), M_PI*2) ; //Wrap angle to valid range
-  cmd.mode = cmd.MODE_ABSOLUTE;
+  // mtrx3760_oogway_mazesolver::msg::AngularCmd cmd;
+  // cmd.target_angle = std::fmod((curr_angle + angle_offset * (M_PI/180)), M_PI*2) ; //Wrap angle to valid range
+  // cmd.mode = cmd.MODE_ABSOLUTE;
+  // angular_cmd_pub_->publish(cmd); //Publish angle to controller
 
-  angular_cmd_pub_->publish(cmd); //Publish angle to controller
+  double angleOffsetRad = angle_offset * (M_PI/180);
+  double newAngle = std::fmod((curr_angle + angle_offset * (M_PI/180)), M_PI*2);
 
-  curr_angle = cmd.target_angle; // Update current angle
+  RCLCPP_INFO(this->get_logger(),
+   "Called Rotate Offset -> current: %.2f - offset: %.2f - result: %.2f (degrees)", curr_angle, angle_offset, newAngle);
+
+  // send off goal
+  auto goal_msg = Actuator::Goal();
+  goal_msg.mode = goal_msg.MODE_ABS_ANGULAR;
+  goal_msg.magnitude = angleOffsetRad;
+
+  // get goal handle, blocking until available; if accepted wait for completion (blocking)
+  auto future_goal_handle = this->client_ptr_->async_send_goal(goal_msg);
+  auto goal_handle = future_goal_handle.get();
+  if (!goal_handle) 
+  {
+    RCLCPP_ERROR(this->get_logger(), "Goal was rejected by the action server.");
+  }
+  else
+  {
+    auto future_result = this->client_ptr_->async_get_result(goal_handle);
+    auto wrapped_result = future_result.get(); 
+
+    switch (wrapped_result.code)
+    {     
+      case rclcpp_action::ResultCode::SUCCEEDED:
+      {
+        RCLCPP_INFO(this->get_logger(), "Goal Succeeded!");
+        break;
+      }
+      case rclcpp_action::ResultCode::ABORTED:
+      {
+        RCLCPP_ERROR(this->get_logger(), "Goal was aborted");
+        break;
+      }
+      case rclcpp_action::ResultCode::CANCELED:
+      {
+        RCLCPP_ERROR(this->get_logger(), "Goal was canceled");
+        break;
+      }
+      default:
+      {
+        RCLCPP_ERROR(this->get_logger(), "Unknown result code");
+        break;
+      }
+    }
+  }
+
+  curr_angle = newAngle; // Update current angle
 }
 
 void mazeNavigator::set_ang_vel(double ang_vel){
-  mtrx3760_oogway_mazesolver::msg::AngularCmd cmd;
-  cmd.angular_vel = ang_vel;
-  cmd.mode = cmd.MODE_VELOCITY;
+  // mtrx3760_oogway_mazesolver::msg::AngularCmd cmd;
+  // cmd.angular_vel = ang_vel;
+  // cmd.mode = cmd.MODE_VELOCITY;
 
-  angular_cmd_pub_->publish(cmd); //Publish angular velocity to controller
+  // angular_cmd_pub_->publish(cmd); //Publish angular velocity to controller
+  RCLCPP_INFO(this->get_logger(), "Called Set Angular Velocity -> magnitude : %.2f", ang_vel);
+
+  
+  // send off goal
+  auto goal_msg = Actuator::Goal();
+  goal_msg.mode = goal_msg.MODE_VEL_ANGULAR;
+  goal_msg.magnitude = ang_vel;
+
+  // get goal handle, blocking until available; if accepted wait for completion (blocking)
+  auto future_goal_handle = this->client_ptr_->async_send_goal(goal_msg);
+  auto goal_handle = future_goal_handle.get();
+  if (!goal_handle) 
+  {
+    RCLCPP_ERROR(this->get_logger(), "Goal was rejected by the action server.");
+  }
+  else
+  {
+    auto future_result = this->client_ptr_->async_get_result(goal_handle);
+    RCLCPP_INFO(this->get_logger(), "get result handle");
+    auto wrapped_result = future_result.get(); 
+    RCLCPP_INFO(this->get_logger(), "got wrapped result");
+
+    switch (wrapped_result.code)
+    {     
+      case rclcpp_action::ResultCode::SUCCEEDED:
+      {
+        RCLCPP_INFO(this->get_logger(), "Goal Succeeded!");
+        break;
+      }
+      case rclcpp_action::ResultCode::ABORTED:
+      {
+        RCLCPP_ERROR(this->get_logger(), "Goal was aborted");
+        break;
+      }
+      case rclcpp_action::ResultCode::CANCELED:
+      {
+        RCLCPP_ERROR(this->get_logger(), "Goal was canceled");
+        break;
+      }
+      default:
+      {
+        RCLCPP_ERROR(this->get_logger(), "Unknown result code");
+        break;
+      }
+    }
+  } 
 }
 
-void mazeNavigator::move_distance(double distance){
-  mtrx3760_oogway_mazesolver::msg::LinearCmd cmd;
-  cmd.target_distance = std::max(0.0, distance); //Clamp distance to positive value
-  cmd.mode = cmd.MODE_ABSOLUTE;
+void mazeNavigator::move_distance(double distance)
+{
+  // mtrx3760_oogway_mazesolver::msg::LinearCmd cmd;
+  // cmd.target_distance = std::max(0.0, distance); //Clamp distance to positive value
+  // cmd.mode = cmd.MODE_ABSOLUTE;
+  // linear_cmd_pub_->publish(cmd); //Publish distance to controller
 
-  linear_cmd_pub_->publish(cmd); //Publish distance to controller
+  RCLCPP_INFO(this->get_logger(), "Called Move Distance -> magnitude : %.2f", distance);
+
+  double clampedDistance = std::max(0.0, distance);
+
+  // send off goal
+  auto goal_msg = Actuator::Goal();
+  goal_msg.mode = goal_msg.MODE_ABS_LINEAR;
+  goal_msg.magnitude = clampedDistance;
+
+  // get goal handle, blocking until available; if accepted wait for completion (blocking)
+  auto send_goal_options = rclcpp_action::Client<Actuator>::SendGoalOptions();
+  
+  send_goal_options.goal_response_callback = [this](const GoalHandleActuator::SharedPtr goal_handle)
+  {
+    if (!goal_handle.get()) {
+      RCLCPP_ERROR(this->get_logger(), "Goal was rejected by server(*&(*&))");
+    } else {
+      RCLCPP_INFO(this->get_logger(), "Goal accepted by server, waiting for result)(*)&");
+    }
+  };
+
+  // RCLCPP_INFO(this->get_logger(), "bongo");
+
+  // if (!goal_handle.get()) 
+  // {
+  //   RCLCPP_ERROR(this->get_logger(), "Goal was rejected by the action server.");
+  // }
+  // else
+  // {
+  //   RCLCPP_INFO(this->get_logger(), "Goal Accepted");
+
+  //   auto future_result = this->client_ptr_->async_get_result(goal_handle);
+  //   auto wrapped_result = future_result.get(); 
+
+  //   switch (wrapped_result.code)
+  //   {     
+  //     case rclcpp_action::ResultCode::SUCCEEDED:
+  //     {
+  //       RCLCPP_INFO(this->get_logger(), "Goal Succeeded!");
+  //       break;
+  //     }
+  //     case rclcpp_action::ResultCode::ABORTED:
+  //     {
+  //       RCLCPP_ERROR(this->get_logger(), "Goal was aborted");
+  //       break;
+  //     }
+  //     case rclcpp_action::ResultCode::CANCELED:
+  //     {
+  //       RCLCPP_ERROR(this->get_logger(), "Goal was canceled");
+  //       break;
+  //     }
+  //     default:
+  //     {
+  //       RCLCPP_ERROR(this->get_logger(), "Unknown result code");
+  //       break;
+  //     }
+  //   }
+  // }
 }
 
 void mazeNavigator::set_vel(double vel){
-  mtrx3760_oogway_mazesolver::msg::LinearCmd cmd;
-  cmd.linear_vel = std::max(0.0, vel); //Clamp velocity to positive value
-  cmd.mode = cmd.MODE_VELOCITY;
+  // mtrx3760_oogway_mazesolver::msg::LinearCmd cmd;
+  // cmd.linear_vel = std::max(0.0, vel); //Clamp velocity to positive value
+  // cmd.mode = cmd.MODE_VELOCITY;
+  // linear_cmd_pub_->publish(cmd); //Publish velocity to controller  
+  RCLCPP_INFO(this->get_logger(), "Called Set Linear Velocity -> magnitude : %.2f", vel);
 
-  linear_cmd_pub_->publish(cmd); //Publish velocity to controller  
+  if (!this->client_ptr_->wait_for_action_server()) {
+    RCLCPP_ERROR(this->get_logger(), "Action server not available after waiting");
+    rclcpp::shutdown();                                                            // DEBUGGINF GET RID OFFFF LAYTER!!!
+  }
+
+  auto goal_msg = Actuator::Goal();
+  goal_msg.mode = goal_msg.MODE_VEL_LINEAR;
+  goal_msg.magnitude = 0.2;// std::max(0.0, vel); //Clamp velocity to positive value
+
+  RCLCPP_INFO(this->get_logger(), "Goal Setup");
+
+  auto send_goal_options = rclcpp_action::Client<Actuator>::SendGoalOptions();
+  
+  RCLCPP_INFO(this->get_logger(), "Options Initialised");
+
+  send_goal_options.goal_response_callback = [this](const GoalHandleActuator::SharedPtr goal_handle)
+  {
+    if (!goal_handle.get()) {
+      RCLCPP_ERROR(this->get_logger(), "Goal was rejected by server");
+    } else {
+      RCLCPP_INFO(this->get_logger(), "Goal accepted by server, waiting for result");
+    }
+  };
+
+  RCLCPP_INFO(this->get_logger(), "Response Callback Defined");
+
+  send_goal_options.result_callback = [this](const GoalHandleActuator::WrappedResult & result)
+  {
+    switch (result.code) 
+    {
+      case rclcpp_action::ResultCode::SUCCEEDED:
+        break;
+      case rclcpp_action::ResultCode::ABORTED:
+        RCLCPP_ERROR(this->get_logger(), "LIGoal was aborted");
+        return;
+      case rclcpp_action::ResultCode::CANCELED:
+        RCLCPP_ERROR(this->get_logger(), "Goal was canceled");
+        return;
+      default:
+        RCLCPP_ERROR(this->get_logger(), "Unknown result code");
+        return;
+    }
+    RCLCPP_INFO(this->get_logger(), "Result Recieved -> success : %d", result.result->success);
+  };
+
+  RCLCPP_INFO(this->get_logger(), "Send through goal w/ async");
+  this->client_ptr_->async_send_goal(goal_msg, send_goal_options);
 }
 
 

@@ -17,6 +17,10 @@ find_package(std_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 
+find_package(rclcpp_action REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(lrl_action_interface REQUIRED)
+
 #CAMERA
 find_package(OpenCV REQUIRED)
 find_package(cv_bridge REQUIRED)
@@ -58,15 +62,23 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 
 #---Export Dependancies---
 ament_export_dependencies(
-  rclcpp 
+  rclcpp rclcpp_action rclcpp_components
   std_msgs sensor_msgs geometry_msgs nav_msgs
+  lrl_action_interface
   rosidl_default_runtime)
 
 
 
 #---Individual Nodes--- 
-add_executable(mazeNavigator src/mazeNavigator_node.cpp src/utils.cpp)
-ament_target_dependencies(mazeNavigator rclcpp rclcpp_action std_msgs geometry_msgs)
+add_executable(mazeNavigator 
+                src/mazeNavigator_node.cpp 
+                src/utils.cpp)
+ament_target_dependencies(mazeNavigator 
+                rclcpp 
+                rclcpp_action 
+                std_msgs 
+                geometry_msgs
+                lrl_action_interface)
 target_link_libraries(mazeNavigator)
 
 add_executable(wallLocator src/wallLocator_node.cpp)

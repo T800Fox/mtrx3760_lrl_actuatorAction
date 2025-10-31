@@ -31,9 +31,10 @@ void mtrx3760_lrl_warehousebot::ActuatorDebugClient::send_goal()
     RCLCPP_INFO(this->get_logger(), "Sending goal");
 
     auto send_goal_options = rclcpp_action::Client<Actuator>::SendGoalOptions();
-    send_goal_options.goal_response_callback = [this](const GoalHandleActuator::SharedPtr & goal_handle)
+    
+    send_goal_options.goal_response_callback = [this](const GoalHandleActuator::SharedPtr goal_handle)
     {
-      if (!goal_handle) {
+      if (!goal_handle.get()) {
         RCLCPP_ERROR(this->get_logger(), "Goal was rejected by server");
       } else {
         RCLCPP_INFO(this->get_logger(), "Goal accepted by server, waiting for result");
@@ -42,12 +43,6 @@ void mtrx3760_lrl_warehousebot::ActuatorDebugClient::send_goal()
 
     send_goal_options.feedback_callback = [this](GoalHandleActuator::SharedPtr, const std::shared_ptr<const Actuator::Feedback> feedback)
     {
-      // std::stringstream ss;
-      // ss << "Next number in sequence received: ";
-      // for (auto number : feedback->partial_sequence) {
-      //   ss << number << " ";
-      // }
-      // RCLCPP_INFO(this->get_logger(), ss.str().c_str());
       RCLCPP_INFO(this->get_logger(), "Made Feedback Call -> (err_n, err_t) : (%.2f, %.2f)", feedback->err_t, feedback->err_n);
 
     };
